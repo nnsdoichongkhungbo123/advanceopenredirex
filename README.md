@@ -23,12 +23,19 @@ You can use this script to check for open redirects in web applications. However
 # Docker Build Command
 
 ```sh
+git clone https://github.com/nnsdoichongkhungbo123/advanceopenredirex.git
+sudo rm -rf advanceopenredirex              
 cd advanceopenredirex/
 nano live_subdomains.txt
 sudo docker build -t openredirex .                      
 sudo docker run --rm -it openredirex /bin/sh
 cd /app
 cd /usr/local/bin
+```
+# Run 
+```sh
+cd /app
 python3 /usr/local/bin/openredirex -i /app/live_subdomains.txt
 python3 /usr/local/bin/openredirex -i /app/live_subdomains.txt -c 100
+
 ```
