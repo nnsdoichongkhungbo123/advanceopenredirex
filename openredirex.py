@@ -273,26 +273,28 @@ async def log_success(filled_url, locations):
             await f.write(f"{locations}\n")
             
 async def fetch_page_content(session, url):
-    """Fetch the HTML content of a webpage."""
-    try:
-        async with session.get(url) as response:
-            if response.status == 200:
-                return await response.text()
-            return ""
-    except Exception as e:
-        return ""
+    """Fetch the HTML content of a page."""
+    async with session.get(url) as response:
+        return await response.text() if response.status == 200 else ""
+
 async def extract_metadata(html):
-    """Extract the title and meta description from the HTML content."""
+    """Extract the title, meta description, headers, and visible content from the page."""
     soup = BeautifulSoup(html, 'html.parser')
-    title = soup.title.string if soup.title else "No Title Found"
-    meta_desc = "No Description Found"
-    meta_tag = soup.find("meta", attrs={"name": "description"})
-    if meta_tag and "content" in meta_tag.attrs:
-        meta_desc = meta_tag["content"]
+
+    title = soup.title.string if soup.title else "No Title"
     
-    # Extract a snippet of body content for additional detail
-    body_text = " ".join(soup.body.stripped_strings[:50]) if soup.body else "No Content Found"
-    return title, meta_desc, body_text
+    meta_desc = soup.find("meta", attrs={"name": "description"})
+    meta_desc = meta_desc["content"] if meta_desc else "No Meta Description"
+
+    headers = [h.get_text(strip=True) for h in soup.find_all(['h1', 'h2', 'h3'])]
+    paragraphs = [p.get_text(strip=True) for p in soup.find_all('p')[:3]]  # Limit to first 3 paragraphs
+    links = [a['href'] for a in soup.find_all('a', href=True)[:5]]  # Limit to first 5 links
+    images = [img['src'] for img in soup.find_all('img', src=True)[:3]]  # Limit to first 3 images
+
+    # Extract main visible text from the webpage (excluding scripts, styles, etc.)
+    visible_text = soup.get_text(separator=' ', strip=True)
+
+    return title, meta_desc, headers, paragraphs, links, images, visible_text
 
 async def fetch_url(session, url):
     try:
@@ -342,24 +344,37 @@ async def process_url(semaphore, session, url, bypass_payloads, pbar):
             base_message = f"Payload: {payload} | URL: {modified_url}"
             
             html = await fetch_page_content(session, modified_url)
-            title, meta_desc, body_snippet = await extract_metadata(html)
+            title, meta_desc, headers, paragraphs, links, images, visible_text = await extract_metadata(html)
             
             if status == 200 and history:
                 locations = " --> ".join(str(r.url) for r in history)
                 tqdm.write(f"{DARK_GREEN}[SUCCESS]{ENDC} {LIGHT_GREEN}{base_message} redirects to {locations}{ENDC}")
+                tqdm.write(f"Title: {title}")
+                tqdm.write(f"Meta Description: {meta_desc}")
+                tqdm.write(f"Headers: {headers}")
+                tqdm.write(f"Paragraphs: {paragraphs}")
+                tqdm.write(f"Links: {links}")
+                tqdm.write(f"Images: {images}")
+                tqdm.write(f"Visible Text: {visible_text[:500]}")  # Show first 500 characters
+                tqdm.write("\n" + "-"*80 + "\n")  # Separator for readability
                 await log_success(modified_url, locations)
             elif status == 200:
                 tqdm.write(f"{RED}[SUCCESS]{ENDC} {base_message} - 200 OK (No Redirects)")
             elif history:
                 locations = " --> ".join(str(r.url) for r in history)
                 tqdm.write(f"{DARK_GREEN}[FOUND]{ENDC} {LIGHT_GREEN}{base_message} redirects to {locations}{ENDC}")
+                tqdm.write(f"Title: {title}")
+                tqdm.write(f"Meta Description: {meta_desc}")
+                tqdm.write(f"Headers: {headers}")
+                tqdm.write(f"Paragraphs: {paragraphs}")
+                tqdm.write(f"Links: {links}")
+                tqdm.write(f"Images: {images}")
+                tqdm.write(f"Visible Text: {visible_text[:500]}")  # Show first 500 characters
+                tqdm.write("\n" + "-"*80 + "\n")  # Separator for readability
                 await log_success(modified_url, locations)
             else:
                 tqdm.write(f"[ERROR] {base_message} - {status}")
             
-            tqdm.write(f"Title: {title}")
-            tqdm.write(f"Meta Description: {meta_desc}")
-            tqdm.write(f"Page Snippet: {body_snippet[:200]}\n")  # Limiting snippet length for readability
             pbar.update()
 
 async def process_urls(semaphore, session, urls, payloads):
