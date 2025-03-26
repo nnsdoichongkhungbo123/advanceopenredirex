@@ -8,7 +8,7 @@ WORKDIR /app
 RUN apt update && apt install -y git nano && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
-RUN pip install --upgrade pip && pip install aiohttp tqdm && pip install aiofiles
+RUN pip install --upgrade pip && pip install aiohttp tqdm && pip install aiofiles && pip install beautifulsoup4 lxml
 
 # Clone the OpenRedireX repository
 RUN git clone https://github.com/nnsdoichongkhungbo123/advanceopenredirex.git /app
