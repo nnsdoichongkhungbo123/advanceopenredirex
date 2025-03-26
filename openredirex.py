@@ -9,6 +9,8 @@ from aiohttp import ClientConnectorError, ClientOSError, ServerDisconnectedError
 from tqdm import tqdm
 from urllib.parse import urlparse, quote, urlunparse
 from typing import List
+from bs4 import BeautifulSoup
+from tqdm.asyncio import tqdm
 
 LIGHT_GREEN = '\033[92m'
 DARK_GREEN = '\033[32m'
@@ -269,6 +271,28 @@ async def log_success(filled_url, locations):
     async with lock:
         async with aiofiles.open('/app/successdomain.txt', mode='a') as f:
             await f.write(f"{locations}\n")
+            
+async def fetch_page_content(session, url):
+    """Fetch the HTML content of a webpage."""
+    try:
+        async with session.get(url) as response:
+            if response.status == 200:
+                return await response.text()
+            return ""
+    except Exception as e:
+        return ""
+async def extract_metadata(html):
+    """Extract the title and meta description from the HTML content."""
+    soup = BeautifulSoup(html, 'html.parser')
+    title = soup.title.string if soup.title else "No Title Found"
+    meta_desc = "No Description Found"
+    meta_tag = soup.find("meta", attrs={"name": "description"})
+    if meta_tag and "content" in meta_tag.attrs:
+        meta_desc = meta_tag["content"]
+    
+    # Extract a snippet of body content for additional detail
+    body_text = " ".join(soup.body.stripped_strings[:50]) if soup.body else "No Content Found"
+    return title, meta_desc, body_text
 
 async def fetch_url(session, url):
     try:
@@ -317,6 +341,9 @@ async def process_url(semaphore, session, url, bypass_payloads, pbar):
             status, history = await fetch_url(session, modified_url)
             base_message = f"Payload: {payload} | URL: {modified_url}"
             
+            html = await fetch_page_content(session, modified_url)
+            title, meta_desc, body_snippet = await extract_metadata(html)
+            
             if status == 200 and history:
                 locations = " --> ".join(str(r.url) for r in history)
                 tqdm.write(f"{DARK_GREEN}[SUCCESS]{ENDC} {LIGHT_GREEN}{base_message} redirects to {locations}{ENDC}")
@@ -329,6 +356,10 @@ async def process_url(semaphore, session, url, bypass_payloads, pbar):
                 await log_success(modified_url, locations)
             else:
                 tqdm.write(f"[ERROR] {base_message} - {status}")
+            
+            tqdm.write(f"Title: {title}")
+            tqdm.write(f"Meta Description: {meta_desc}")
+            tqdm.write(f"Page Snippet: {body_snippet[:200]}\n")  # Limiting snippet length for readability
             pbar.update()
 
 async def process_urls(semaphore, session, urls, payloads):
