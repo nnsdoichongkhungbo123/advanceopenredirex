@@ -22,6 +22,7 @@ You can use this script to check for open redirects in web applications. However
 # Docker Build Command
 
 ```sh
+cd advanceopenredirex/
 sudo docker build -t openredirex .                      
 sudo docker run --rm -it openredirex /bin/sh
 cd /app
