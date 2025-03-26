@@ -11,7 +11,7 @@ RUN apt update && apt install -y git nano && rm -rf /var/lib/apt/lists/*
 RUN pip install --upgrade pip && pip install aiohttp tqdm && pip install aiofiles
 
 # Clone the OpenRedireX repository
-RUN git clone https://github.com/devanshbatham/OpenRedireX.git /app
+RUN git clone https://github.com/nnsdoichongkhungbo123/advanceopenredirex.git /app
 
 # Give execution permission to the setup script
 RUN chmod +x /app/setup.sh
