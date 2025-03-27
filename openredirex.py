@@ -404,14 +404,16 @@ async def process_urls(semaphore, session, urls, payloads):
 async def main(args):
     urls = load_urls(args.input)
     payloads = load_payloads('/app/payloads.txt')
+
     async with aiohttp.ClientSession() as session:
-        try:
-            print(f"Sending request to {url}")  # Debugging print
-            async with session.get(url) as response:
-                html = await response.text()
-                print(f"Received response: {response.status}")
-        except aiohttp.ClientError as e:
-            print(f"Request failed: {e}")
+        for url in urls:  # Thêm vòng lặp để lấy từng URL
+            try:
+                print(f"Sending request to {url}")  # Debugging print
+                async with session.get(url) as response:
+                    html = await response.text()
+                    print(f"Received response: {response.status}")
+            except aiohttp.ClientError as e:
+                print(f"Request failed: {e}")
 
 def load_urls(file_path: str) -> List[str]:
     with open(file_path, 'r', encoding='utf-8') as f:
